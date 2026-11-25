@@ -32,6 +32,24 @@ Proveriti da li se KST može koristiti za pravljenje kurikuluma za neuronske mre
 
 ![Ručni graf preduslova za Tatsuoka stavke](prostor%20znanja.svg)
 
+### ```22.11.2026.``` Q-matrica i IITA
+- Razjasnio sam razliku: Q-matrica je tabela koju pišu stručnjaci (koja stavka traži koje veštine), a iz nje se računa graf preduslova. IITA pravi graf samo iz tačnih i netačnih odgovora učenika, bez znanja o veštinama.
+- Odluka: ove nedelje prvo MLP, a transformer tek ako MLP uspe.
+
+### ```23.11.2026.``` Q-graf i IITA na ljudskim podacima
+- **Q-graf:** stavka `a` je preduslov za `b` ako su veštine stavke `a` deo veština stavke `b`. Dobio sam 101 par i graf se poklapa sa mojim ručnim crtežom (17 od 17 ivica). To nije nezavisna provera, jer je crtež napravljen iz iste Q-matrice.
+- **IITA:** napisao sam je u Pythonu (jedna od tri varijante, minimalno korigovana). Nisam je poredio sa originalnim R paketom DAKS, jer nemam R. Na simuliranim učenicima, napravljenim iz Q-grafa, pronalazi 99 od 101 pravih parova, uz 21 višak.
+- **Rezultat na 536 učenika:** IITA daje 204 para koji se slažu u jedan lanac od 12 koraka, bez grananja. Sa Q-grafom ima 91 zajednički par (Jaccard 0,43). Svih 10 parova koje ima samo Q-graf imaju "preduslov" koji je rešen ređe od stavke koja od njega zavisi.
+- Kod sam podelio u pakete `kst/` i `tasks/`, a podatke u `data/`.
+
+![IITA graf za ljudske podatke](iita_graph.png)
+
+### ```25.11.2026.``` provera lanca i čišćenje zadataka
+- **Zašto je graf jedan lanac:** kod je u redu, lanac se ponovi i kad ponovo nasumično izvučem učenike, a redosled stavki prati njihovu težinu. Verovatno je razlog to što su sve stavke iz iste oblasti, pa ko je dobar rešava sve. To je pretpostavka, nisam je testirao.
+- **Čišćenje zadataka:** iz `tasks.csv` sam izbacio duplikate i 20 Tatsuoka zadataka, a cilj je 1000 zadataka po tipu (ranije 100). Ukupno ih je 14332, jer 7 tipova nema dovoljno različitih zadataka (npr. množenje jednocifrenih ima samo 64). Ostaje nejednak broj po tipu.
+- Ranijih 1900 zadataka je 19 tipova × 100. Tatsuoka stavke nisu dodatni zadaci, nego primeri unutar tipova.
+- **Format odgovora:** `3/2`, skraćen razlomak. Ceo broj je bez imenioca (`2`), a mešoviti brojevi se pojavljuju samo u zadacima, ne u odgovorima.
+
 ### Početni plan i trenutna odluka
 
 | | Početni plan | Sada |
@@ -44,9 +62,9 @@ Proveriti da li se KST može koristiti za pravljenje kurikuluma za neuronske mre
 ### Zapažanja i otvorena pitanja
 - Prva verzija generatora je mogla da proizvede samo 4 od 20 Tatsuoka stavki (2, 6, 15, 16), pa sam dodao tipove i proširio imenioce.
 - Tip sa skraćivanjem rezultata se preklapao sa tipom sa istim imeniocem. Popravljeno: oni sada ne dele zapise.
-- Mali prostor zadataka daje mnogo duplikata (npr. množenje jednocifrenih: 55 od 100). Još nije rešeno, treba izbaciti duplikate i 20 Tatsuoka stavki iz treninga.
+- Mali prostor zadataka daje mnogo duplikata (npr. množenje jednocifrenih: 55 od 100). Rešeno 25.11.: duplikati i 20 Tatsuoka stavki su izbačeni.
 - Veština 3 ("skraćivanje pre oduzimanja") je u Q-matrici u stavkama 4, 19 i 20, što se slaže sa tabelom iz arXiv 1303.0426, a ne sa tvrdnjom u radu da je samo u stavci 4. Stavka 11 ima nepravi razlomak, ali nema veštinu 3.
-- Format odgovora (`3/2` ili `1 1/2`, skraćen ili ne) još nije odlučen. Odlučuje se u probnom treningu.
+- Format odgovora odlučen 25.11.: `3/2`, skraćen.
 
 ## Koraci
 1. Pretraga literature i skupova podataka - urađeno
@@ -57,8 +75,21 @@ Proveriti da li se KST može koristiti za pravljenje kurikuluma za neuronske mre
 6. Kurikulumi i kontrole
 7. Rezultati i zaključci
 
+## Struktura projekta
+```
+main.py                    generiše zadatke i Tatsuoka stavke
+download_human_data.py     ponovno preuzimanje ljudskih podataka iz R-a (traži R)
+project_paths.py           putanje do svih fajlova sa podacima
+tasks/                     generator zadataka (celi brojevi, razlomci, Tatsuoka stavke)
+kst/                       Q-matrica, IITA, simulacija, crtanje grafova
+notebooks/                 01_q_graph.ipynb, 02_iita.ipynb
+data/generated/tasks.csv   generisani zadaci
+data/tatsuoka/             items.csv, answers.csv, q_matrix.csv
+```
+Dnevnik ispod pominje stara imena fajlova (`generator.py`, `zadaci.csv`, `tatsuoka_zadaci.csv`, `tatsuoka_odgovori.csv`, `tatsuoka_Q.csv`). Nova imena su u strukturi iznad.
+
 ## Pokretanje
-`python main.py` generiše `zadaci.csv` i `tatsuoka_zadaci.csv`. Za preuzimanje ljudskih odgovora treba instaliran R (poziv `preuzmi_tatsuoka_iz_R()` u `main.py`, po potrebi odkomentarisati).
+`python main.py` generiše `data/generated/tasks.csv` i `data/tatsuoka/items.csv`. Ljudski podaci (`answers.csv`, `q_matrix.csv`) su već u projektu. Za ponovno preuzimanje treba R: `python download_human_data.py`. Notebook-ovi se pokreću iz `notebooks/` (`jupyter lab`).
 
 ## Rizici
 - Tip koji niko ne reši (ili svi reše) ne nosi informaciju za IITA.
